@@ -44,7 +44,7 @@ dps_logs_stg_2 AS (
             FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
         )
 
-        -- Don't filter for the relevant combinations of entity, country_code, and scheme_id even though the code takes longer to run
+        -- Don't filter for the relevant combinations of entity, country_code, and scheme_id even though the code takes longer to run without this filter
         -- We care about sessions that were associated with the DF amounts of the respective ASA, not which scheme these DF amounts came from. To a customer, the DF amount is what matters. They don't know which scheme it came from
 )
 
