@@ -790,7 +790,7 @@ WITH temp_tbl AS (
         vendor_count_caught_by_asa,
         vendor_code,
         -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one)
-        CASE WHEN num_yes > 0 THEN 'is_LB' ELSE 'is_not_LB' END AS is_LB,
+        CASE WHEN num_yes > 0 THEN 'Y' ELSE 'N' END AS is_LB,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(DF_total AS STRING) ORDER BY DF_total), ', ') AS DFs_seen_in_sessions,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(is_LB_test_passed AS STRING) ORDER BY DF_total), ', ') AS is_LB_test_passed,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(CVR3 AS STRING) ORDER BY DF_total), ', ') AS vendor_cvr3_by_df,
@@ -812,7 +812,7 @@ SELECT
     CASE WHEN b.is_LB IS NOT NULL THEN 'Top 25%' ELSE 'Bottom 75%' END AS vendor_rank,
     
     -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one) 
-    COALESCE(b.is_LB, 'is_not_LB') AS is_LB, -- Impute the label of the vendor. If the vendor is in the bottom 75%, it's a non-LB by definition
+    COALESCE(b.is_LB, 'N') AS is_LB, -- Impute the label of the vendor. If the vendor is in the bottom 75%, it's a non-LB by definition
     b.DFs_seen_in_sessions,
     COALESCE(b.is_LB_test_passed, 'N') is_LB_test_passed, -- If the vendor is in the bottom 75% of vendors, the LB test is not passed by definition
     b.vendor_cvr3_by_df,
@@ -835,22 +835,22 @@ SELECT
     a.asa_orders_after_visits_filter,
     a.asa_orders_after_visits_and_orders_filters,		
     a.asa_orders_after_all_initial_filters,
-    SUM(CASE WHEN b.is_LB = 'is_LB' THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_LB_logic,
+    SUM(CASE WHEN b.is_LB = 'Y' THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_LB_logic,
     a.asa_order_share_after_visits_filter,		
     a.asa_order_share_after_visits_and_orders_filters,
     a.asa_order_share_after_all_initial_filters,
-    ROUND(SUM(CASE WHEN b.is_LB = 'is_LB' THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_LB_logic,		
+    ROUND(SUM(CASE WHEN b.is_LB = 'Y' THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_LB_logic,		
     
     -- Vendor count and share after each filtering stage
     a.vendor_count_caught_by_asa,
     a.vendor_count_remaining_after_visits_filter,		
     a.vendor_count_remaining_after_visits_and_orders_filters,		
     a.vendor_count_remaining_after_all_initial_filters,
-    COUNT(DISTINCT CASE WHEN b.is_LB = 'is_LB' THEN b.vendor_code ELSE NULL END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_LB_logic,
+    COUNT(DISTINCT CASE WHEN b.is_LB = 'Y' THEN b.vendor_code ELSE NULL END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_LB_logic,
     a.perc_vendors_remaining_after_visits_filter,
     a.perc_vendors_remaining_after_visits_and_orders_filters,
     a.perc_vendors_remaining_after_all_initial_filters,
-    ROUND(COUNT(DISTINCT CASE WHEN b.is_LB = 'is_LB' THEN b.vendor_code ELSE NULL END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_LB_logic,
+    ROUND(COUNT(DISTINCT CASE WHEN b.is_LB = 'Y' THEN b.vendor_code ELSE NULL END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_LB_logic,
     CURRENT_TIMESTAMP() AS update_timestamp
 FROM `dh-logistics-product-ops.pricing.all_metrics_for_vendor_screening_loved_brands_scaled_code` a -- Contains ALL vendors (bottom 75% and top 25%)
 LEFT JOIN temp_tbl b
