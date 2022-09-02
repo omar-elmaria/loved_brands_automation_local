@@ -287,7 +287,7 @@ SELECT
     entity_id,
     LOWER(country_code) AS country_code,
     vendor_id AS vendor_code,
-    COUNT(DISTINCT order_id) AS num_orders,
+    COUNT(DISTINCT platform_order_code) AS num_orders,
 FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_orders_v2` o
 WHERE TRUE
     AND CONCAT(entity_id, ' | ', country_code, ' | ', vendor_id) IN (
@@ -809,6 +809,7 @@ SELECT
     a.asa_id,
     a.asa_name,
     a.vendor_code,
+    c.vertical_type,
     CASE WHEN b.is_LB IS NOT NULL THEN 'Top 25%' ELSE 'Bottom 75%' END AS vendor_rank,
     
     -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one) 
@@ -859,6 +860,7 @@ LEFT JOIN temp_tbl b
         AND a.country_code = b.country_code 
         AND a.asa_id = b.asa_id
         AND a.vendor_code = b.vendor_code
+LEFT JOIN `dh-logistics-product-ops.curated_data_shared_central_dwh.vendors` c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
 ORDER BY 1,2,3,4,5,6,7;
 
 ###---------------------------------------------------------------------------------------END OF STEP 16---------------------------------------------------------------------------------------###

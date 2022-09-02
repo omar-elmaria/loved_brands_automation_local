@@ -30,6 +30,7 @@ SELECT
     a.asa_id,
     a.asa_name,
     a.vendor_code,
+    c.vertical_type,
     CASE WHEN b.is_LB IS NOT NULL THEN 'Top 25%' ELSE 'Bottom 75%' END AS vendor_rank,
     
     -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one) 
@@ -80,4 +81,5 @@ LEFT JOIN temp_tbl b
         AND a.country_code = b.country_code 
         AND a.asa_id = b.asa_id
         AND a.vendor_code = b.vendor_code
+LEFT JOIN `dh-logistics-product-ops.curated_data_shared_central_dwh.vendors` c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
 ORDER BY 1,2,3,4,5,6,7;

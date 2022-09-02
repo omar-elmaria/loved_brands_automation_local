@@ -4,7 +4,7 @@ SELECT
     entity_id,
     LOWER(country_code) AS country_code,
     vendor_id AS vendor_code,
-    COUNT(DISTINCT order_id) AS num_orders,
+    COUNT(DISTINCT platform_order_code) AS num_orders,
 FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_orders_v2` o
 WHERE TRUE
     AND CONCAT(entity_id, ' | ', country_code, ' | ', vendor_id) IN (
