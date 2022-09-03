@@ -860,7 +860,7 @@ LEFT JOIN temp_tbl b
         AND a.country_code = b.country_code 
         AND a.asa_id = b.asa_id
         AND a.vendor_code = b.vendor_code
-LEFT JOIN `dh-logistics-product-ops.curated_data_shared_central_dwh.vendors` c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
+LEFT JOIN `fulfillment-dwh-production.curated_data_shared_central_dwh.vendors` c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
 ORDER BY 1,2,3,4,5,6,7;
 
 ###---------------------------------------------------------------------------------------END OF STEP 16---------------------------------------------------------------------------------------###
