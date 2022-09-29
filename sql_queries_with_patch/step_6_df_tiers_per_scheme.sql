@@ -44,7 +44,8 @@ FROM (
             AND ttc.active_to IS NULL
             AND ttd.active_to IS NULL
             AND CONCAT(ps.entity_id, " | ", ps.country_code, " | ", ps.scheme_id) IN (
-                SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", scheme_id) FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
+                SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", scheme_id) AS entity_country_scheme
+                FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
             )
         QUALIFY
             TIMESTAMP_TRUNC(h.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(h.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id)
@@ -57,5 +58,5 @@ FROM (
             AND a.country_code = b.country_code
             AND a.scheme_id = b.scheme_id
 )
-ORDER BY 1, 2, 3, 4, scheme_id, tier
+ORDER BY region, entity_id, country_code, asa_id, scheme_id, tier
 ;

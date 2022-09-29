@@ -35,7 +35,7 @@ LEFT JOIN `dh-logistics-product-ops.pricing.ga_dps_sessions_loved_brands_scaled_
 WHERE TRUE
     AND ses.df_total IS NOT NULL -- Remove DPS sessions that do not return a DF value because any such record would be meaningless
     AND CONCAT(ven.entity_id, " | ", ven.country_code, " | ", ven.master_asa_id, " | ", ses.df_total) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee) AS entity_country_asa_fee
         FROM `dh-logistics-product-ops.pricing.df_tiers_per_asa_loved_brands_scaled_code`
     )
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8 -- Filter for the main DF thresholds under each ASA (RIGHT NOW as reported by dps_config_versions) because the DF tiers that were obtained from the logs could contain ones that are not related to the ASA

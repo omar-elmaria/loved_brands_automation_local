@@ -12,6 +12,7 @@ WITH b AS (
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code`
     GROUP BY 1, 2, 3, 4, 5, 6
 )
+
 SELECT
     a.region,
     a.entity_id,

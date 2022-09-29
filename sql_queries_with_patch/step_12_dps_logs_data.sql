@@ -15,7 +15,7 @@ WITH dps_logs_stg_1 AS (
     WHERE TRUE
         -- Filter for the relevant combinations of entity and country_code
         AND CONCAT(logs.entity_id, " | ", LOWER(logs.country_code)) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code) AS entity_country
             FROM `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
         )
         -- Do NOT filter for multiplFee (MF) endpoints because the query times out if you do so. singleFee endpoint requests are sufficient for our purposes even though we lose a bit of data richness when we don't consider MF requests
@@ -40,7 +40,7 @@ dps_logs_stg_2 AS (
     WHERE TRUE
         -- Filter for the relevant combinations of entity, country_code, and vendor_code
         AND CONCAT(dps.entity_id, " | ", dps.country_code, " | ", v.id) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
             FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
         )
 

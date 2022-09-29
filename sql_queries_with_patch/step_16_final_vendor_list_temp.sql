@@ -82,5 +82,4 @@ LEFT JOIN temp_tbl AS b
         AND a.master_asa_id = b.master_asa_id
         AND a.vendor_code = b.vendor_code
 LEFT JOIN `fulfillment-dwh-production.curated_data_shared_central_dwh.vendors` AS c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
-ORDER BY 1, 2, 3, 4, 5, 6, 7
 ;

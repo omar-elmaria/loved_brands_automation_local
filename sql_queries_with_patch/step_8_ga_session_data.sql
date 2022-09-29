@@ -57,12 +57,12 @@ INNER JOIN `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
 WHERE TRUE
     -- Filter for the relevant combinations of entity, country_code, city_name, and zone_name
     AND CONCAT(x.entity_id, " | ", x.country_code, " | ", dps.city_name, " | ", dps.name) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", city_name, " | ", zone_name)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", city_name, " | ", zone_name) AS entity_country_city_zone
         FROM `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
     )
     -- Filter for the relevant combinations of entity, country_code, and vendor_code
     AND CONCAT(x.entity_id, " | ", x.country_code, " | ", e.vendor_code) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
         FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
     )
     -- Extract session data over the specified time frame

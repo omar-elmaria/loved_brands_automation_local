@@ -39,5 +39,5 @@ WHERE TRUE
     AND asa_setup_active_to IS NULL -- Get the most up-to-date ASA assignment setup
     AND pc_setup_active_from = pc_setup_active_from_max_date
     AND pc_setup_active_to IS NULL -- Get the most up-to-date price configuration setup
-ORDER BY 1, 2, 3, 4, asa_priority, vendor_code, condition_priority, scheme_id
+ORDER BY region, entity_id, country_code, asa_id, asa_priority, vendor_code, condition_priority, scheme_id
 ;

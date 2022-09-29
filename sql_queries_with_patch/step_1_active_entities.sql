@@ -1,6 +1,7 @@
 -- Step 1: Obtain a list of all active entities in Delivery Hero
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.active_entities_loved_brands_scaled_code` AS
 WITH dps AS (SELECT DISTINCT entity_id FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_orders_v2`)
+
 SELECT
     ent.region,
     p.entity_id,

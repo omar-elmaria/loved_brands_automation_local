@@ -25,4 +25,4 @@ SELECT
     a.vendor_count_caught_by_asa
 FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.parent_child_asa_linking_loved_brands_scaled_code` AS b USING (entity_id, country_code, asa_id)
-    ;
+;
