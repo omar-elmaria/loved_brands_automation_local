@@ -1,0 +1,86 @@
+[sqlfluff]
+templater = jinja
+dialect = bigquery
+
+# L027 - References should be qualified if select has more than one referenced table/view.
+# -> This rule is not very advanced and doesn't support nested fields well, which we use al ot.
+# L029 - Keywords should not be used as identifiers
+# -> Using unreserved keywords in BigQuery poses no problem at all. Also, when dealing with external
+# data sources we not always have control over field names. Enabling this rule will yield to a lot
+# lint errors and the gain is very little.
+# L032 - Prefer specifying join keys instead of using USING.
+# -> No, we dont. Actually we prefer USINGs over JOIN
+# L034 - Select wildcards then simple targets before calculations and aggregates.
+# -> This rule is incompatible with some of the stuff we do in Datahub
+# L044 - Query produces an unknown number of result columns.
+# -> We use CTA with SELECT * a lot.
+# L060 - Use COALESCE instead of IFNULL or NVL.
+# -> No! The reason behind this rule is because COALESCE is universally supported while IFNULL is not.
+# But we don't care about whether other databases can run our queries.
+# Let users write the SQL in most easy to understand way.
+exclude_rules = L027, L029, L032, L034, L044, L060
+
+# By default SQLFluff ignores "large" files. But by the default definition basically
+# all of our SQL files are considered large
+large_file_skip_char_limit = 0
+large_file_skip_byte_limit = 0
+
+[sqlfluff:rules]
+# SQLFluff doesn't handle max_line_length very well.
+# We put it some arbritarily high. This might change in the future
+# when handling of long lines becomes better.
+max_line_length = 800
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = False
+library_path = utils/sqlfluff_airflow
+
+[sqlfluff:rules:L003]
+hanging_indents = False
+
+[sqlfluff:rules:L010]
+# Keywords
+capitalisation_policy = upper
+
+[sqlfluff:rules:L014]
+# unquoted identifiers
+extended_capitalisation_policy = lower
+ignore_words = _PARTITIONTIME
+
+[sqlfluff:rules:L013]
+# Column expression without alias. Use explicit AS clause.
+allow_scalar = false
+
+[sqlfluff:rules:L030]
+# Capitalisation of function names
+extended_capitalisation_policy = upper
+# UDFs are ignored from capitalisation
+# Regex to be able to handle `project`.dataset._f_udf()
+# and `project.dataset._f_udf`()
+ignore_words_regex = (^_f_|\._f_)
+
+[sqlfluff:rules:L036]
+# Select targets should be on a new line unless there is only one select target
+wildcard_policy = single
+
+[sqlfluff:rules:L040]
+# Null & Boolean Literals
+capitalisation_policy = upper
+
+[sqlfluff:rules:L052]
+# Semi-colon formatting approach
+# Datahub VIEW SQL cannot have a trailing semicolon, hence we do not enforce it.
+multiline_newline = True
+require_final_semicolon = False
+
+[sqlfluff:rules:L057]
+# Special characters in identifiers
+additional_allowed_characters = "-"
+
+[sqlfluff:rules:L063]
+# Inconsistent capitalisation of datatypes
+extended_capitalisation_policy = upper
+
+[sqlfluff:rules:L064]
+# Consistent usage of preferred quotes for quoted literals
+preferred_quoted_literal_style = double_quotes
