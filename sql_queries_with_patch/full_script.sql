@@ -140,7 +140,7 @@ ORDER BY 1, 2, 3
 
 ###---------------------------------------------------------------------------------------END OF STEP 2---------------------------------------------------------------------------------------###
 
--- Step 3.3: Add the master_asa_id to the table that contains the ASA setups in each country #NEW (amend step number)
+-- Step 3.3: Add the master_asa_id to the table that contains the ASA setups in each country
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` AS
 SELECT
     a.region,
