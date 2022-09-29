@@ -8,4 +8,5 @@ SELECT DISTINCT
     asa_name,
     fee
 FROM `dh-logistics-product-ops.pricing.df_tiers_per_price_scheme_loved_brands_scaled_code`
-ORDER BY 1,2,3,4,5;
+ORDER BY 1, 2, 3, 4, 5
+;

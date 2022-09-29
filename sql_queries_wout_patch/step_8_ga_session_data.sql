@@ -18,11 +18,11 @@ SELECT DISTINCT
     x.sessions.perseus_client_id, -- A unique customer identifier based on the device
     x.sessions.variant, -- AB variant (e.g. Control, Variation1, Variation2, etc.)
     x.sessions.experiment_id AS test_id, -- Experiment ID
-    CASE 
-        WHEN x.sessions.vertical_parent IS NULL THEN NULL 
-        WHEN LOWER(x.sessions.vertical_parent) IN ('restaurant', 'restaurants') THEN 'restaurant'
-        WHEN LOWER(x.sessions.vertical_parent) = 'shop' THEN 'shop'
-        WHEN LOWER(x.sessions.vertical_parent) = 'darkstores' THEN 'darkstores'
+    CASE
+        WHEN x.sessions.vertical_parent IS NULL THEN NULL
+        WHEN LOWER(x.sessions.vertical_parent) IN ("restaurant", "restaurants") THEN "restaurant"
+        WHEN LOWER(x.sessions.vertical_parent) = "shop" THEN "shop"
+        WHEN LOWER(x.sessions.vertical_parent) = "darkstores" THEN "darkstores"
     END AS vertical_parent, -- Parent vertical
     x.sessions.customer_status, -- The customer.tag, indicating whether the customer is new or not
     x.sessions.location, -- The customer.location
@@ -44,28 +44,29 @@ SELECT DISTINCT
     dps.timezone, -- Time zone of the city based on the DPS session
 
     ST_ASTEXT(x.ga_location) AS ga_location -- GA location expressed as a STRING
-FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_ga_sessions` x
-LEFT JOIN UNNEST(events) e
-LEFT JOIN UNNEST(dps_zone) dps
+FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_ga_sessions` AS x
+LEFT JOIN UNNEST(events) AS e
+LEFT JOIN UNNEST(dps_zone) AS dps
 -- This is an alternative to using dps.name/dps.id in the WHERE clause. Here, we filter for sessions in the relevant zones
-INNER JOIN `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code` cd 
-    ON TRUE 
-        AND x.entity_id = cd.entity_id 
+INNER JOIN `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code` AS cd
+    ON TRUE
+        AND x.entity_id = cd.entity_id
         AND x.country_code = cd.country_code
-        AND dps.city_name = cd.city_name 
+        AND dps.city_name = cd.city_name
         AND ST_CONTAINS(cd.zone_shape, x.ga_location)
 WHERE TRUE
     -- Filter for the relevant combinations of entity, country_code, city_name, and zone_name
-    AND CONCAT(x.entity_id, ' | ', x.country_code, ' | ', dps.city_name, ' | ', dps.name) IN (
-        SELECT DISTINCT CONCAT(entity_id, ' | ', country_code, ' | ', city_name, ' | ', zone_name) 
+    AND CONCAT(x.entity_id, " | ", x.country_code, " | ", dps.city_name, " | ", dps.name) IN (
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", city_name, " | ", zone_name) AS entity_country_city_zone
         FROM `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
     )
     -- Filter for the relevant combinations of entity, country_code, and vendor_code
-    AND CONCAT(x.entity_id, ' | ', x.country_code, ' | ', e.vendor_code) IN (
-        SELECT DISTINCT CONCAT(entity_id, ' | ', country_code, ' | ', vendor_code) 
+    AND CONCAT(x.entity_id, " | ", x.country_code, " | ", e.vendor_code) IN (
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
         FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
     )
     -- Extract session data over the specified time frame
     AND x.created_date BETWEEN DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) AND LAST_DAY(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)) -- Sessions' start and end date
     -- Filter for 'shop_details.loaded', 'transaction' events as we only need those to calculate CVR3
-    AND e.event_action IN ('shop_details.loaded', 'transaction'); -- transaction / shop_details.loaded = CVR3
+    AND e.event_action IN ("shop_details.loaded", "transaction") -- transaction / shop_details.loaded = CVR3
+;
