@@ -14,7 +14,7 @@ FROM (
         a.* EXCEPT (region, entity_id, country_code),
         RANK() OVER (PARTITION BY a.entity_id, a.country_code, a.scheme_id, a.travel_time_config_id ORDER BY a.tt_threshold) AS tier
     FROM (
-        SELECT DISTINCT 
+        SELECT DISTINCT
             ps.region,
             ps.entity_id,
             ps.country_code,
@@ -26,35 +26,36 @@ FROM (
             ttc.config_name,
             TIMESTAMP_TRUNC(ttc.active_from, SECOND) AS tt_config_active_from,
             TIMESTAMP_TRUNC(ttc.active_to, SECOND) AS tt_config_active_to,
-            CASE WHEN ttd.travel_time_threshold IS NULL THEN 9999999 ELSE ttd.travel_time_threshold END AS tt_threshold,
-            CASE 
-                WHEN ttd.travel_time_threshold IS NULL THEN 9999999 
-                ELSE ROUND(FLOOR(ttd.travel_time_threshold) + (ttd.travel_time_threshold - FLOOR(ttd.travel_time_threshold)) * 60/100, 2) 
+            COALESCE(ttd.travel_time_threshold, 9999999) AS tt_threshold,
+            CASE
+                WHEN ttd.travel_time_threshold IS NULL THEN 9999999
+                ELSE ROUND(FLOOR(ttd.travel_time_threshold) + (ttd.travel_time_threshold - FLOOR(ttd.travel_time_threshold)) * 60 / 100, 2)
             END AS threshold_in_min_and_sec,
             ttd.travel_time_fee AS fee,
             TIMESTAMP_TRUNC(ttd.active_from, SECOND) AS tt_detail_active_from,
-            TIMESTAMP_TRUNC(ttd.active_to, SECOND) AS tt_detail_active_to,
-        FROM `fulfillment-dwh-production.cl.dps_config_versions` ps
-        LEFT JOIN UNNEST(price_scheme_history) h
-        LEFT JOIN UNNEST(travel_time_history) tth
-        LEFT JOIN UNNEST(travel_time_config) ttc
-        LEFT JOIN UNNEST(travel_time_detail) ttd
+            TIMESTAMP_TRUNC(ttd.active_to, SECOND) AS tt_detail_active_to
+        FROM `fulfillment-dwh-production.cl.dps_config_versions` AS ps
+        LEFT JOIN UNNEST(price_scheme_history) AS h
+        LEFT JOIN UNNEST(travel_time_history) AS tth
+        LEFT JOIN UNNEST(travel_time_config) AS ttc
+        LEFT JOIN UNNEST(travel_time_detail) AS ttd
         WHERE TRUE
-            AND h.active_to IS NULL 
-            AND ttc.active_to IS NULL 
+            AND h.active_to IS NULL
+            AND ttc.active_to IS NULL
             AND ttd.active_to IS NULL
-            AND CONCAT(ps.entity_id, ' | ', ps.country_code, ' | ', ps.scheme_id) IN (
-                SELECT DISTINCT CONCAT(entity_id, ' | ', country_code, ' | ', scheme_id) FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
+            AND CONCAT(ps.entity_id, " | ", ps.country_code, " | ", ps.scheme_id) IN (
+                SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", scheme_id) FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
             )
-        QUALIFY 
-            TIMESTAMP_TRUNC(h.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(h.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id) AND
-            TIMESTAMP_TRUNC(ttc.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(ttc.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id)
-            -- Don't filter for the latest travel time detail record(s) via another QUALIFY statement because this occasionally removes relevant TT tiers
-    ) a
-    LEFT JOIN `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code` b 
+        QUALIFY
+            TIMESTAMP_TRUNC(h.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(h.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id)
+            AND TIMESTAMP_TRUNC(ttc.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(ttc.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id)
+    -- Don't filter for the latest travel time detail record(s) via another QUALIFY statement because this occasionally removes relevant TT tiers
+    ) AS a
+    LEFT JOIN `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code` AS b
         ON TRUE
             AND a.entity_id = b.entity_id
             AND a.country_code = b.country_code
             AND a.scheme_id = b.scheme_id
 )
-ORDER BY 1,2,3,4, scheme_id, tier;
+ORDER BY 1, 2, 3, 4, scheme_id, tier
+;

@@ -11,5 +11,6 @@ SELECT DISTINCT
     asa_common_name,
     vendor_count_caught_by_asa,
     scheme_id,
-    CASE WHEN time_condition_id IS NULL AND customer_condition_id IS NULL THEN 'Main Scheme' ELSE 'Condition Scheme' END AS scheme_type
-FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code`;
+    CASE WHEN time_condition_id IS NULL AND customer_condition_id IS NULL THEN "Main Scheme" ELSE "Condition Scheme" END AS scheme_type
+FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code`
+;

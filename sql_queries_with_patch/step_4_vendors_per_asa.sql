@@ -15,4 +15,5 @@ SELECT DISTINCT
 FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code`
 WHERE TRUE
     AND time_condition_id IS NULL -- Filter for records without a time condition because the vendor codes would be duplicated if we have ASA configs with a time condition
-    AND customer_condition_id IS NULL; -- Filter for records without a customer condition becaue the vendor codes would be duplicated if we have ASA configs with a time condition
+    AND customer_condition_id IS NULL -- Filter for records without a customer condition becaue the vendor codes would be duplicated if we have ASA configs with a time condition
+;

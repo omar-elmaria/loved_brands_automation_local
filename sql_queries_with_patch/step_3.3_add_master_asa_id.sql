@@ -1,6 +1,6 @@
 -- Step 3.3: Add the master_asa_id to the table that contains the ASA setups in each country
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` AS
-SELECT 
+SELECT
     a.region,
     a.entity_id,
     a.country_code,
@@ -23,5 +23,6 @@ SELECT
     a.pc_setup_active_from_max_date,
     a.pc_setup_active_to,
     a.vendor_count_caught_by_asa
-FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` a
-LEFT JOIN `dh-logistics-product-ops.pricing.parent_child_asa_linking_loved_brands_scaled_code` b USING (entity_id, country_code, asa_id);
+FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` AS a
+LEFT JOIN `dh-logistics-product-ops.pricing.parent_child_asa_linking_loved_brands_scaled_code` AS b USING (entity_id, country_code, asa_id)
+    ;
