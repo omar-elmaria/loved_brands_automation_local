@@ -15,6 +15,7 @@ SET (sessions_ntile_thr, orders_ntile_thr, cvr3_ntile_thr) = (0.75, 0.75, 0.75);
 -- Step 1: Obtain a list of all active entities in Delivery Hero
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.active_entities_loved_brands_scaled_code` AS
 WITH dps AS (SELECT DISTINCT entity_id FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_orders_v2`)
+
 SELECT
     ent.region,
     p.entity_id,
@@ -98,7 +99,7 @@ WHERE TRUE
     AND asa_setup_active_to IS NULL -- Get the most up-to-date ASA assignment setup
     AND pc_setup_active_from = pc_setup_active_from_max_date
     AND pc_setup_active_to IS NULL -- Get the most up-to-date price configuration setup
-ORDER BY 1, 2, 3, 4, asa_priority, vendor_code, condition_priority, scheme_id
+ORDER BY region, entity_id, country_code, asa_id, asa_priority, vendor_code, condition_priority, scheme_id
 ;
 
 ###---------------------------------------------------------------------------------------END OF STEP TEMPORARY STEP FOR TESTING---------------------------------------------------------------------------------------###
@@ -129,7 +130,7 @@ SELECT
     -- If child = parent + "_LB" OR parent + "_LB" = child
     CASE WHEN LOWER(a.asa_name) = LOWER(CONCAT(linked_asa, "_LB")) OR LOWER(CONCAT(a.asa_name, "_LB")) = LOWER(linked_asa) THEN TRUE ELSE FALSE END AS is_asa_clustered,
     TRIM(a.asa_name, "_LB") AS asa_common_name
-FROM parent_and_child_asa a
+FROM parent_and_child_asa AS a
 WHERE TRUE
     AND CASE WHEN LOWER(a.asa_name) = LOWER(CONCAT(linked_asa, "_LB")) OR LOWER(CONCAT(a.asa_name, "_LB")) = LOWER(linked_asa) THEN TRUE ELSE FALSE END = TRUE
     AND a.entity_id = a.entity_id_linked_asa
@@ -166,7 +167,7 @@ SELECT
     a.vendor_count_caught_by_asa
 FROM `dh-logistics-product-ops.pricing.asa_setups_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.parent_child_asa_linking_loved_brands_scaled_code` AS b USING (entity_id, country_code, asa_id)
-    ;
+;
 
 ###---------------------------------------------------------------------------------------END OF STEP 3.3---------------------------------------------------------------------------------------###
 
@@ -257,7 +258,8 @@ FROM (
             AND ttc.active_to IS NULL
             AND ttd.active_to IS NULL
             AND CONCAT(ps.entity_id, " | ", ps.country_code, " | ", ps.scheme_id) IN (
-                SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", scheme_id) FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
+                SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", scheme_id) AS entity_country_scheme
+                FROM `dh-logistics-product-ops.pricing.scheme_ids_per_asa_loved_brands_scaled_code`
             )
         QUALIFY
             TIMESTAMP_TRUNC(h.active_from, SECOND) = MAX(TIMESTAMP_TRUNC(h.active_from, SECOND)) OVER (PARTITION BY ps.entity_id, ps.country_code, ps.scheme_id)
@@ -270,7 +272,7 @@ FROM (
             AND a.country_code = b.country_code
             AND a.scheme_id = b.scheme_id
 )
-ORDER BY 1, 2, 3, 4, scheme_id, tier
+ORDER BY region, entity_id, country_code, asa_id, scheme_id, tier
 ;
 
 ###---------------------------------------------------------------------------------------END OF STEP 6---------------------------------------------------------------------------------------###
@@ -351,12 +353,12 @@ INNER JOIN `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
 WHERE TRUE
     -- Filter for the relevant combinations of entity, country_code, city_name, and zone_name
     AND CONCAT(x.entity_id, " | ", x.country_code, " | ", dps.city_name, " | ", dps.name) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", city_name, " | ", zone_name)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", city_name, " | ", zone_name) AS entity_country_city_zone
         FROM `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
     )
     -- Filter for the relevant combinations of entity, country_code, and vendor_code
     AND CONCAT(x.entity_id, " | ", x.country_code, " | ", e.vendor_code) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
         FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
     )
     -- Extract session data over the specified time frame
@@ -377,7 +379,7 @@ SELECT
 FROM `fulfillment-dwh-production.cl.dps_sessions_mapped_to_orders_v2`
 WHERE TRUE
     AND CONCAT(entity_id, " | ", country_code, " | ", vendor_id) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
         FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
     )
     AND created_date BETWEEN DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) AND LAST_DAY(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
@@ -409,7 +411,7 @@ WITH temp_tbl AS (
     INNER JOIN `dh-logistics-product-ops.pricing.active_entities_loved_brands_scaled_code` AS ent ON o.entity_id = ent.entity_id AND o.country_code = ent.country_code -- Filter only for active DH entities
     WHERE TRUE
         AND CONCAT(o.entity_id, " | ", o.country_code, " | ", o.assignment_id) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", asa_id)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", asa_id) AS entity_country_asa
             FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
         )
         AND o.created_date BETWEEN DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) AND LAST_DAY(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
@@ -606,7 +608,7 @@ WITH dps_logs_stg_1 AS (
     WHERE TRUE
         -- Filter for the relevant combinations of entity and country_code
         AND CONCAT(logs.entity_id, " | ", LOWER(logs.country_code)) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code) AS entity_country
             FROM `dh-logistics-product-ops.pricing.city_data_loved_brands_scaled_code`
         )
         -- Do NOT filter for multiplFee (MF) endpoints because the query times out if you do so. singleFee endpoint requests are sufficient for our purposes even though we lose a bit of data richness when we don't consider MF requests
@@ -631,7 +633,7 @@ dps_logs_stg_2 AS (
     WHERE TRUE
         -- Filter for the relevant combinations of entity, country_code, and vendor_code
         AND CONCAT(dps.entity_id, " | ", dps.country_code, " | ", v.id) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", vendor_code) AS entity_country_vendor
             FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
         )
 
@@ -707,7 +709,7 @@ LEFT JOIN `dh-logistics-product-ops.pricing.ga_dps_sessions_loved_brands_scaled_
 WHERE TRUE
     AND ses.df_total IS NOT NULL -- Remove DPS sessions that do not return a DF value because any such record would be meaningless
     AND CONCAT(ven.entity_id, " | ", ven.country_code, " | ", ven.master_asa_id, " | ", ses.df_total) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee) AS entity_country_asa_fee
         FROM `dh-logistics-product-ops.pricing.df_tiers_per_asa_loved_brands_scaled_code`
     )
 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8 -- Filter for the main DF thresholds under each ASA (RIGHT NOW as reported by dps_config_versions) because the DF tiers that were obtained from the logs could contain ones that are not related to the ASA
@@ -730,6 +732,7 @@ WITH b AS (
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code`
     GROUP BY 1, 2, 3, 4, 5, 6, 7
 )
+
 SELECT
     a.region,
     a.entity_id,
@@ -755,7 +758,7 @@ SELECT
     CASE WHEN a.cvr3 = b.vendor_cvr3_at_min_df THEN NULL ELSE ROUND(a.cvr3 / NULLIF(b.vendor_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_actual_cvr3_from_base
 FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_vendor_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id, vendor_code)
-    ;
+;
 
 ###---------------------------------------------------------------------------------------END OF STEP 14.3---------------------------------------------------------------------------------------###
 
@@ -791,7 +794,7 @@ LEFT JOIN `dh-logistics-product-ops.pricing.ga_dps_sessions_loved_brands_scaled_
 WHERE TRUE
     AND ses.df_total IS NOT NULL -- Remove DPS sessions that do not return a DF value because any such record would be meaningless
     AND CONCAT(ven.entity_id, " | ", ven.country_code, " | ", ven.master_asa_id, " | ", ses.df_total) IN (
-        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee)
+        SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", master_asa_id, " | ", fee) AS entity_country_asa_fee
         FROM `dh-logistics-product-ops.pricing.df_tiers_per_asa_loved_brands_scaled_code`
     ) -- Filter for the main DF thresholds under each ASA (RIGHT NOW as reported by dps_config_versions) because the DF tiers that were obtained from the logs could contain ones that are not related to the ASA
 GROUP BY 1, 2, 3, 4, 5, 6, 7
@@ -813,6 +816,7 @@ WITH b AS (
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code`
     GROUP BY 1, 2, 3, 4, 5, 6
 )
+
 SELECT
     a.region,
     a.entity_id,
@@ -837,7 +841,7 @@ SELECT
     CASE WHEN a.asa_cvr3_per_df = b.asa_cvr3_at_min_df THEN NULL ELSE ROUND(a.asa_cvr3_per_df / NULLIF(b.asa_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_asa_cvr3_from_base
 FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_asa_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id)
-    ;
+;
 
 ###---------------------------------------------------------------------------------------END OF STEP 15.3---------------------------------------------------------------------------------------###
 
@@ -964,7 +968,6 @@ LEFT JOIN temp_tbl AS b
         AND a.master_asa_id = b.master_asa_id
         AND a.vendor_code = b.vendor_code
 LEFT JOIN `fulfillment-dwh-production.curated_data_shared_central_dwh.vendors` AS c ON a.entity_id = c.global_entity_id AND a.vendor_code = c.vendor_id
-ORDER BY 1, 2, 3, 4, 5, 6, 7
 ;
 
 ###---------------------------------------------------------------------------------------END OF STEP 16---------------------------------------------------------------------------------------###

@@ -20,7 +20,7 @@ WITH temp_tbl AS (
     INNER JOIN `dh-logistics-product-ops.pricing.active_entities_loved_brands_scaled_code` AS ent ON o.entity_id = ent.entity_id AND o.country_code = ent.country_code -- Filter only for active DH entities
     WHERE TRUE
         AND CONCAT(o.entity_id, " | ", o.country_code, " | ", o.assignment_id) IN (
-            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", asa_id)
+            SELECT DISTINCT CONCAT(entity_id, " | ", country_code, " | ", asa_id) AS entity_country_asa
             FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code`
         )
         AND o.created_date BETWEEN DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH) AND LAST_DAY(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))

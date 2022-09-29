@@ -7,4 +7,4 @@ SELECT
     CASE WHEN a.asa_cvr3_per_df = b.asa_cvr3_at_min_df THEN NULL ELSE ROUND(a.asa_cvr3_per_df / NULLIF(b.asa_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_asa_cvr3_from_base
 FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_asa_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id)
-    ;
+;

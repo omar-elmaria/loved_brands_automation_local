@@ -24,7 +24,7 @@ SELECT
     -- If child = parent + "_LB" OR parent + "_LB" = child
     CASE WHEN LOWER(a.asa_name) = LOWER(CONCAT(linked_asa, "_LB")) OR LOWER(CONCAT(a.asa_name, "_LB")) = LOWER(linked_asa) THEN TRUE ELSE FALSE END AS is_asa_clustered,
     TRIM(a.asa_name, "_LB") AS asa_common_name
-FROM parent_and_child_asa a
+FROM parent_and_child_asa AS a
 WHERE TRUE
     AND CASE WHEN LOWER(a.asa_name) = LOWER(CONCAT(linked_asa, "_LB")) OR LOWER(CONCAT(a.asa_name, "_LB")) = LOWER(linked_asa) THEN TRUE ELSE FALSE END = TRUE
     AND a.entity_id = a.entity_id_linked_asa

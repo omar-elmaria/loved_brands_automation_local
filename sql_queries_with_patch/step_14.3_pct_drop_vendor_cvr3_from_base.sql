@@ -7,4 +7,4 @@ SELECT
     CASE WHEN a.cvr3 = b.vendor_cvr3_at_min_df THEN NULL ELSE ROUND(a.cvr3 / NULLIF(b.vendor_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_actual_cvr3_from_base
 FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS a
 LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_vendor_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id, vendor_code)
-    ;
+;
