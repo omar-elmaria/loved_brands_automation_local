@@ -6,11 +6,11 @@ WITH all_metrics AS (
         COALESCE(o.num_orders, 0) AS num_orders,
         COALESCE(COUNT(DISTINCT CASE WHEN event_action = "shop_details.loaded" THEN events_ga_session_id END), 0) AS num_unique_vendor_visits, -- If a vendor was visited more than once in the same session, it's one visit
         COALESCE(COUNT(DISTINCT CASE WHEN event_action = "shop_details.loaded" THEN event_time END), 0) AS num_total_vendor_impressions, -- If a vendor was visited more than once in the same session, count all impressions
-        COALESCE(COUNT(DISTINCT CASE WHEN event_action = "transaction" THEN event_time END), 0) AS num_transactions,
+        COALESCE(COUNT(DISTINCT CASE WHEN event_action = "transaction" THEN events_ga_session_id END), 0) AS num_transactions,
         -- We choose to round to 5 decimal places because we compare the CVRs to one another at a later point in the code when we calculate the pct drop in CVR from the base
         -- More precision is needed to avoid calculation errors due to rounding
         COALESCE(
-            ROUND(COUNT(DISTINCT CASE WHEN event_action = "transaction" THEN event_time END) / NULLIF(COUNT(DISTINCT CASE WHEN event_action = "shop_details.loaded" THEN events_ga_session_id END), 0), 5),
+            ROUND(COUNT(DISTINCT CASE WHEN event_action = "transaction" THEN events_ga_session_id END) / NULLIF(COUNT(DISTINCT CASE WHEN event_action = "shop_details.loaded" THEN events_ga_session_id END), 0), 5),
             0
         ) AS cvr3
     FROM `dh-logistics-product-ops.pricing.vendor_ids_per_asa_loved_brands_scaled_code` AS v

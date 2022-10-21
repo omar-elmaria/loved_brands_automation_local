@@ -17,10 +17,10 @@ SELECT
     COALESCE(COUNT(DISTINCT CASE WHEN ses.event_action = "shop_details.loaded" THEN ses.events_ga_session_id END), 0) AS num_unique_vendor_visits,
     -- If a vendor was visited more than once in the same session, all impressions are counted
     COALESCE(COUNT(DISTINCT CASE WHEN ses.event_action = "shop_details.loaded" THEN ses.event_time END), 0) AS num_total_vendor_impressions,
-    COALESCE(COUNT(DISTINCT CASE WHEN ses.event_action = "transaction" THEN ses.event_time END), 0) AS num_transactions,
+    COALESCE(COUNT(DISTINCT CASE WHEN ses.event_action = "transaction" THEN ses.events_ga_session_id END), 0) AS num_transactions,
     COALESCE(
         ROUND(
-            COUNT(DISTINCT CASE WHEN ses.event_action = "transaction" THEN ses.event_time END)
+            COUNT(DISTINCT CASE WHEN ses.event_action = "transaction" THEN ses.events_ga_session_id END)
             / NULLIF(COUNT(DISTINCT CASE WHEN ses.event_action = "shop_details.loaded" THEN ses.events_ga_session_id END), 0),
             5
         ),
