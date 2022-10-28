@@ -3,7 +3,7 @@ CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.df_tiers_per_price_sch
 SELECT *
 FROM (
     SELECT
-        a.region,
+        b.region,
         a.entity_id,
         a.country_code,
         -- Keep in mind that one scheme could be included in more than one ASA, so joining "dps_config_versions" on the "scheme_ids_per_asa_loved_brands_scaled_code" will produce duplicates and this is expected
@@ -11,11 +11,10 @@ FROM (
         b.master_asa_id,
         b.asa_name,
         b.asa_common_name,
-        a.* EXCEPT (region, entity_id, country_code),
+        a.* EXCEPT (entity_id, country_code),
         RANK() OVER (PARTITION BY a.entity_id, a.country_code, a.scheme_id, a.travel_time_config_id ORDER BY a.tt_threshold) AS tier
     FROM (
         SELECT DISTINCT
-            ps.region,
             ps.entity_id,
             ps.country_code,
             ps.scheme_id,
