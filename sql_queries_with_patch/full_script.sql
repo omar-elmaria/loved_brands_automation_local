@@ -1,8 +1,8 @@
 /*
 This script curates the "Loved Brands" for all countries and ASAs
 V3 includes the patch that links the parent to its child
-V3_Linted_Deplyed to GitHub is the same as V3 but with the formatting rules applied
-V4_Linted_Deplyed includes a fix for how CVR3 is calculated --> Exclude event_time from the numerator
+V3_Linted_Deployed to GitHub is the same as V3 but with the formatting rules applied
+V4_Linted_Deployed includes a fix for how CVR3 is calculated --> Exclude event_time from the numerator
 */
 
 ###---------------------------------------------------------------------------------------END OF SCRIPT DESCRIPTION---------------------------------------------------------------------------------------###
