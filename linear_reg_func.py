@@ -1,26 +1,24 @@
-# Load the packages
-import pandas as pd
-import numpy as np
-from google.cloud import bigquery
-from google.cloud import bigquery_storage
-from sklearn.linear_model import LinearRegression
-import warnings
-warnings.filterwarnings(action="ignore") # Suppress pandas warnings
-
-# Define a function that fits a linear line through the CVR points
-def model(df, cvr_col):
-    data_x = df[["df_total"]].values
-    data_y = df[[cvr_col]].values
-    lm = LinearRegression()
-    lm.fit(X=data_x, y=data_y)
-    return round(float(np.squeeze(lm.coef_)), 4)
-
 def linear_reg_func(granularity): # "asa" or "vendor"
+    # Local imports
+    from google.cloud import bigquery
+    from google.cloud import bigquery_storage
+    import pandas as pd
+    
     # Instantiate the BQ variables to read and write to GCP
     client = bigquery.Client(project="logistics-data-staging-flat")
     bqstorage_client = bigquery_storage.BigQueryReadClient()
     job_config = bigquery.LoadJobConfig()
     job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
+
+    # Define a function that fits a linear line through the CVR points
+    def model(df, cvr_col):
+        from sklearn.linear_model import LinearRegression # Local import to speed up importing
+        import numpy as np
+        data_x = df[["df_total"]].values
+        data_y = df[[cvr_col]].values
+        lm = LinearRegression()
+        lm.fit(X=data_x, y=data_y)
+        return round(float(np.squeeze(lm.coef_)), 4)
     
     if granularity == "asa":
         # Download the datasets
@@ -37,7 +35,7 @@ def linear_reg_func(granularity): # "asa" or "vendor"
         destination_tbl = "cvr_per_df_bucket_asa_level_loved_brands_scaled_code"
     elif granularity == "vendor":
         # Download the datasets
-        data_query == """SELECT * FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code`"""        
+        data_query = """SELECT * FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code`"""        
         df = client.query(query=data_query).result().to_dataframe(bqstorage_client=bqstorage_client)
         
         # Get the slopes
