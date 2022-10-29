@@ -863,7 +863,7 @@ FROM add_tier_rank
 
 ###---------------------------------------------------------------------------------------END OF STEP 15.3---------------------------------------------------------------------------------------###
 
--- Step 15.4: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
+-- Step 16: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code` AS
 SELECT
     -- Vendor level data
@@ -915,7 +915,7 @@ LEFT JOIN `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_br
 
 ###---------------------------------------------------------------------------------------END OF STEP 15.4---------------------------------------------------------------------------------------###
 
--- Step 16: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
+-- Step 17: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.final_vendor_list_all_data_temp_loved_brands_scaled_code` AS
 WITH temp_tbl AS (
     SELECT
@@ -1025,7 +1025,7 @@ LEFT JOIN `fulfillment-dwh-production.curated_data_shared_central_dwh.vendors` A
 
 ###---------------------------------------------------------------------------------------END OF STEP 16---------------------------------------------------------------------------------------###
 
--- Step 17: Append the output of `final_vendor_list_all_data_temp_loved_brands_scaled_code` to the final table `final_vendor_list_all_data_loved_brands_scaled_code`
+-- Step 18: Append the output of `final_vendor_list_all_data_temp_loved_brands_scaled_code` to the final table `final_vendor_list_all_data_loved_brands_scaled_code`
 INSERT `dh-logistics-product-ops.pricing.final_vendor_list_all_data_loved_brands_scaled_code`
 SELECT *
 FROM `dh-logistics-product-ops.pricing.final_vendor_list_all_data_temp_loved_brands_scaled_code`
