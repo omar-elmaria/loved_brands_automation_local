@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings(action="ignore")
+
 def linear_reg_func(granularity): # "asa" or "vendor"
     # Local imports
     from google.cloud import bigquery
@@ -53,3 +56,6 @@ def linear_reg_func(granularity): # "asa" or "vendor"
         destination=f"dh-logistics-product-ops.pricing.{destination_tbl}",
         job_config=job_config
     ).result()
+
+linear_reg_func(granularity="vendor")
+linear_reg_func(granularity="asa")

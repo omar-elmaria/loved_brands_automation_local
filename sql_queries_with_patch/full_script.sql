@@ -970,12 +970,12 @@ SELECT
     b.vendor_cvr3_by_df,
     b.pct_chng_of_actual_cvr3_from_base,
     b.vendor_cvr3_slope,
-    b.num_tiers_vendor,
+    CAST(b.num_tiers_vendor AS INT64) AS num_tiers_vendor,
     
     b.asa_cvr3_per_df,
     b.pct_chng_of_asa_cvr3_from_base,
     b.asa_cvr3_slope,
-    b.num_tiers_asa,
+    CAST(b.num_tiers_asa AS INT64) AS num_tiers_asa,
 
     -- Vendor data (Busines metrics and other KPIs)
     a.num_orders,
