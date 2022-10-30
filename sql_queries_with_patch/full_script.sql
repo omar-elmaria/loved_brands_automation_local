@@ -627,7 +627,7 @@ dps_logs_stg_2 AS (
         v.id AS vendor_code,
         v.meta_data.scheme_id,
         v.meta_data.vendor_price_scheme_type,
-        v.delivery_fee.total AS df_total,
+        v.delivery_fee.travel_time AS df_total,
         dps.session_timestamp,
         dps.created_at
     FROM dps_logs_stg_1 AS dps
