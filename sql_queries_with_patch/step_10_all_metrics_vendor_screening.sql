@@ -41,7 +41,7 @@ additional_fields AS (
         *,
         -- Entity orders and ASA order share
         SUM(num_orders) OVER (PARTITION BY entity_id, country_code) AS entity_orders,
-        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders,
+        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders, -- We use asa_id not master_asa_id because this field and the others below it are used in the dashboard, which is on ASA level not master ASA
         ROUND(SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) / NULLIF(SUM(num_orders) OVER (PARTITION BY entity_id, country_code), 0), 4) AS asa_order_share_of_entity,
 
         -- ASA order count after every filtering step
