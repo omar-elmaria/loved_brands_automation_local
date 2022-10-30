@@ -21,7 +21,7 @@ def linear_reg_func(granularity): # "asa" or "vendor"
         data_y = df[[cvr_col]].values
         lm = LinearRegression()
         lm.fit(X=data_x, y=data_y)
-        return round(float(np.squeeze(lm.coef_)), 4)
+        return float(np.squeeze(lm.coef_))
     
     if granularity == "asa":
         # Download the datasets
