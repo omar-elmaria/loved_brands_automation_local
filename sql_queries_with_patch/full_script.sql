@@ -994,26 +994,26 @@ SELECT
     a.asa_orders_after_visits_filter,
     a.asa_orders_after_visits_and_orders_filters,
     a.asa_orders_after_all_initial_filters,
-    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS asa_orders_after_lb_logic,
-    SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS asa_orders_after_lb_logic_lm,
+    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic, -- We use asa_id not master_asa_id to reflect the right granularity in the dashboard
+    SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic_lm,
     a.asa_order_share_after_visits_filter,
     a.asa_order_share_after_visits_and_orders_filters,
     a.asa_order_share_after_all_initial_filters,
-    ROUND(SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic,
-    ROUND(SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic_lm,
+    ROUND(SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic,
+    ROUND(SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic_lm,
 
     -- Vendor count and share after each filtering stage
     a.vendor_count_caught_by_asa,
     a.vendor_count_remaining_after_visits_filter,
     a.vendor_count_remaining_after_visits_and_orders_filters,
     a.vendor_count_remaining_after_all_initial_filters,
-    COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS vendor_count_remaining_after_lb_logic,
-    COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS vendor_count_remaining_after_lb_logic_lm,
+    COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_lb_logic,
+    COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_lb_logic_lm,
     a.perc_vendors_remaining_after_visits_filter,
     a.perc_vendors_remaining_after_visits_and_orders_filters,
     a.perc_vendors_remaining_after_all_initial_filters,
-    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic,
-    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic_lm,
+    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic,
+    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic_lm,
     CURRENT_TIMESTAMP() AS update_timestamp
 FROM `dh-logistics-product-ops.pricing.all_metrics_for_vendor_screening_loved_brands_scaled_code` AS a -- Contains ALL vendors (bottom 75% and top 25%)
 LEFT JOIN temp_tbl AS b
