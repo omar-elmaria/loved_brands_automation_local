@@ -52,7 +52,7 @@ def linear_reg_func(granularity): # "asa" or "vendor"
 
     # Upload the df_vendor frame to BQ
     client.load_table_from_dataframe(
-        dataframe=df_merged.reset_index(),
+        dataframe=df_merged.reset_index(drop=True),
         destination=f"dh-logistics-product-ops.pricing.{destination_tbl}",
         job_config=job_config
     ).result()
