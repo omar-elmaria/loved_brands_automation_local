@@ -41,17 +41,17 @@ additional_fields AS (
         *,
         -- Entity orders and ASA order share
         SUM(num_orders) OVER (PARTITION BY entity_id, country_code) AS entity_orders,
-        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders,
-        ROUND(SUM(num_orders) OVER (PARTITION BY entity_id, country_code, master_asa_id) / NULLIF(SUM(num_orders) OVER (PARTITION BY entity_id, country_code), 0), 4) AS asa_order_share_of_entity,
+        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders,
+        ROUND(SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) / NULLIF(SUM(num_orders) OVER (PARTITION BY entity_id, country_code), 0), 4) AS asa_order_share_of_entity,
 
         -- ASA order count after every filtering step
-        SUM(CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN num_orders END) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_visits_filter,
+        SUM(CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN num_orders END) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_visits_filter,
         SUM(
             CASE WHEN
                 unique_visits_pct_rank >= sessions_ntile_thr
                 AND orders_pct_rank >= orders_ntile_thr
                 THEN num_orders END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_visits_and_orders_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_visits_and_orders_filters,
 
         SUM(
             CASE WHEN
@@ -59,17 +59,17 @@ additional_fields AS (
                 AND orders_pct_rank >= orders_ntile_thr
                 AND cvr3_pct_rank >= cvr3_ntile_thr
                 THEN num_orders END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_all_initial_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_all_initial_filters,
 
         -- ASA vendor count after every filtering step
-        COUNT(DISTINCT CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN vendor_code END) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_visits_filter,
+        COUNT(DISTINCT CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN vendor_code END) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_visits_filter,
 
         COUNT(
             DISTINCT CASE WHEN
                 unique_visits_pct_rank >= sessions_ntile_thr
                 AND orders_pct_rank >= orders_ntile_thr
                 THEN vendor_code END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_visits_and_orders_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_visits_and_orders_filters,
 
         COUNT(
             DISTINCT CASE WHEN
@@ -77,7 +77,7 @@ additional_fields AS (
                 AND orders_pct_rank >= orders_ntile_thr
                 AND cvr3_pct_rank >= cvr3_ntile_thr
                 THEN vendor_code END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_all_initial_filters
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_all_initial_filters
     FROM pct_ranks
 )
 
