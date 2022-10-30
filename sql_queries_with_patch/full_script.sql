@@ -850,14 +850,14 @@ WITH add_tier_rank AS (
         b.min_df_total_of_asa,
         b.asa_cvr3_at_min_df,
         CASE WHEN a.asa_cvr3_per_df = b.asa_cvr3_at_min_df THEN NULL ELSE ROUND(a.asa_cvr3_per_df / NULLIF(b.asa_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_asa_cvr3_from_base,
-        ROW_NUMBER() OVER (PARTITION BY a.entity_id, a.country_code, a.master_asa_id ORDER BY a.df_total) AS tier_rank_asa
+        ROW_NUMBER() OVER (PARTITION BY a.entity_id, a.country_code, a.master_asa_id ORDER BY a.df_total) AS tier_rank_master_asa
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS a
     LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_asa_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id)
 )
 
 SELECT 
     *,
-    MAX(tier_rank_asa) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS num_tiers_asa
+    MAX(tier_rank_master_asa) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS num_tiers_master_asa
 FROM add_tier_rank
 ;
 
@@ -879,8 +879,8 @@ SELECT
     c.asa_cvr3_per_df,
     c.pct_chng_of_asa_cvr3_from_base,
     c.asa_cvr3_slope,
-    c.tier_rank_asa,
-    c.num_tiers_asa,
+    c.tier_rank_master_asa,
+    c.num_tiers_master_asa,
 
     -- Vendor level data
     a.cvr3,
@@ -944,7 +944,7 @@ WITH temp_tbl AS (
         ARRAY_TO_STRING(ARRAY_AGG(CAST(asa_cvr3_per_df AS STRING) ORDER BY df_total), ", ") AS asa_cvr3_per_df,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(pct_chng_of_asa_cvr3_from_base AS STRING) ORDER BY df_total), ", ") AS pct_chng_of_asa_cvr3_from_base,
         AVG(asa_cvr3_slope) AS asa_cvr3_slope,
-        AVG(num_tiers_asa) AS num_tiers_asa
+        AVG(num_tiers_master_asa) AS num_tiers_master_asa
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code`
     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
 )
@@ -977,7 +977,7 @@ SELECT
     b.asa_cvr3_per_df,
     b.pct_chng_of_asa_cvr3_from_base,
     b.asa_cvr3_slope,
-    CAST(b.num_tiers_asa AS INT64) AS num_tiers_asa,
+    CAST(b.num_tiers_master_asa AS INT64) AS num_tiers_master_asa,
 
     -- Vendor data (Busines metrics and other KPIs)
     a.num_orders,

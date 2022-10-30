@@ -14,8 +14,8 @@ SELECT
     c.asa_cvr3_per_df,
     c.pct_chng_of_asa_cvr3_from_base,
     c.asa_cvr3_slope,
-    c.tier_rank_asa,
-    c.num_tiers_asa,
+    c.tier_rank_master_asa,
+    c.num_tiers_master_asa,
 
     -- Vendor level data
     a.cvr3,

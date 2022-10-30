@@ -25,7 +25,7 @@ WITH temp_tbl AS (
         ARRAY_TO_STRING(ARRAY_AGG(CAST(asa_cvr3_per_df AS STRING) ORDER BY df_total), ", ") AS asa_cvr3_per_df,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(pct_chng_of_asa_cvr3_from_base AS STRING) ORDER BY df_total), ", ") AS pct_chng_of_asa_cvr3_from_base,
         AVG(asa_cvr3_slope) AS asa_cvr3_slope,
-        AVG(num_tiers_asa) AS num_tiers_asa
+        AVG(num_tiers_master_asa) AS num_tiers_master_asa
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code`
     GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
 )
@@ -58,7 +58,7 @@ SELECT
     b.asa_cvr3_per_df,
     b.pct_chng_of_asa_cvr3_from_base,
     b.asa_cvr3_slope,
-    CAST(b.num_tiers_asa AS INT64) AS num_tiers_asa,
+    CAST(b.num_tiers_master_asa AS INT64) AS num_tiers_master_asa,
 
     -- Vendor data (Busines metrics and other KPIs)
     a.num_orders,
