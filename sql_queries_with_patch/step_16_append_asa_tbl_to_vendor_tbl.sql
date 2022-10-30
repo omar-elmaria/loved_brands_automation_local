@@ -1,4 +1,4 @@
--- Step 15.4: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
+-- Step 16: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code` AS
 SELECT
     -- Vendor level data

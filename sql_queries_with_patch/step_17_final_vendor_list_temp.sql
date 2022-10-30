@@ -1,4 +1,4 @@
--- Step 16: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
+-- Step 17: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.final_vendor_list_all_data_temp_loved_brands_scaled_code` AS
 WITH temp_tbl AS (
     SELECT
@@ -75,7 +75,7 @@ SELECT
     a.asa_orders_after_visits_filter,
     a.asa_orders_after_visits_and_orders_filters,
     a.asa_orders_after_all_initial_filters,
-    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic,
+    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic, -- We use asa_id not master_asa_id to reflect the right granularity in the dashboard
     SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic_lm,
     a.asa_order_share_after_visits_filter,
     a.asa_order_share_after_visits_and_orders_filters,
