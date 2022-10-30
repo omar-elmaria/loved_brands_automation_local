@@ -30,6 +30,7 @@ SELECT
         -- If the slope on the vendor level is zero, this means that the vendor had a 0 CVR3, so we automatically label because the elasticity calculation in such case is void
         WHEN a.vendor_cvr3_slope = 0 THEN "N"
         WHEN a.vendor_cvr3_slope <= c.asa_cvr3_slope THEN "N"
+        WHEN a.vendor_cvr3_slope IS NULL THEN "N" -- If the vendor_cvr3_slope IS NULL, this means that the vendor has a flat DF, so no elasticity can be calculated
         WHEN a.vendor_cvr3_slope > c.asa_cvr3_slope THEN "Y"
         ELSE "Unknown"
     END AS is_lb_test_passed_lm,
