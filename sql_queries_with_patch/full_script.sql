@@ -3,6 +3,7 @@ This script curates the "Loved Brands" for all countries and ASAs
 V3 includes the patch that links the parent to its child
 V3_Linted_Deployed to GitHub is the same as V3 but with the formatting rules applied
 V4_Linted_Deployed includes a fix for how CVR3 is calculated --> Exclude event_time from the numerator
+V5_Linted_Deployed has a new way of calculating elasticities based on linear regression
 */
 
 ###---------------------------------------------------------------------------------------END OF SCRIPT DESCRIPTION---------------------------------------------------------------------------------------###
@@ -478,17 +479,17 @@ additional_fields AS (
         *,
         -- Entity orders and ASA order share
         SUM(num_orders) OVER (PARTITION BY entity_id, country_code) AS entity_orders,
-        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders,
-        ROUND(SUM(num_orders) OVER (PARTITION BY entity_id, country_code, master_asa_id) / NULLIF(SUM(num_orders) OVER (PARTITION BY entity_id, country_code), 0), 4) AS asa_order_share_of_entity,
+        SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders, -- We use asa_id not master_asa_id because this field and the others below it are used in the dashboard, which is on ASA level not master ASA
+        ROUND(SUM(num_orders) OVER (PARTITION BY entity_id, country_code, asa_id) / NULLIF(SUM(num_orders) OVER (PARTITION BY entity_id, country_code), 0), 4) AS asa_order_share_of_entity,
 
         -- ASA order count after every filtering step
-        SUM(CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN num_orders END) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_visits_filter,
+        SUM(CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN num_orders END) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_visits_filter,
         SUM(
             CASE WHEN
                 unique_visits_pct_rank >= sessions_ntile_thr
                 AND orders_pct_rank >= orders_ntile_thr
                 THEN num_orders END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_visits_and_orders_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_visits_and_orders_filters,
 
         SUM(
             CASE WHEN
@@ -496,17 +497,17 @@ additional_fields AS (
                 AND orders_pct_rank >= orders_ntile_thr
                 AND cvr3_pct_rank >= cvr3_ntile_thr
                 THEN num_orders END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS asa_orders_after_all_initial_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS asa_orders_after_all_initial_filters,
 
         -- ASA vendor count after every filtering step
-        COUNT(DISTINCT CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN vendor_code END) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_visits_filter,
+        COUNT(DISTINCT CASE WHEN unique_visits_pct_rank >= sessions_ntile_thr THEN vendor_code END) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_visits_filter,
 
         COUNT(
             DISTINCT CASE WHEN
                 unique_visits_pct_rank >= sessions_ntile_thr
                 AND orders_pct_rank >= orders_ntile_thr
                 THEN vendor_code END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_visits_and_orders_filters,
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_visits_and_orders_filters,
 
         COUNT(
             DISTINCT CASE WHEN
@@ -514,7 +515,7 @@ additional_fields AS (
                 AND orders_pct_rank >= orders_ntile_thr
                 AND cvr3_pct_rank >= cvr3_ntile_thr
                 THEN vendor_code END
-        ) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS vendor_count_remaining_after_all_initial_filters
+        ) OVER (PARTITION BY entity_id, country_code, asa_id) AS vendor_count_remaining_after_all_initial_filters
     FROM pct_ranks
 )
 
@@ -626,7 +627,7 @@ dps_logs_stg_2 AS (
         v.id AS vendor_code,
         v.meta_data.scheme_id,
         v.meta_data.vendor_price_scheme_type,
-        v.delivery_fee.total AS df_total,
+        v.delivery_fee.travel_time AS df_total,
         dps.session_timestamp,
         dps.created_at
     FROM dps_logs_stg_1 AS dps
@@ -752,13 +753,21 @@ INNER JOIN b ON a.entity_id = b.entity_id AND a.country_code = b.country_code AN
 
 -- Step 14.3: Calculate the percentage drop in CVR3 from the base/min DF that was calculated in the previous step and append the result to the first table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS
-SELECT
-    a.*,
-    b.min_df_total_of_vendor,
-    b.vendor_cvr3_at_min_df,
-    CASE WHEN a.cvr3 = b.vendor_cvr3_at_min_df THEN NULL ELSE ROUND(a.cvr3 / NULLIF(b.vendor_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_actual_cvr3_from_base
-FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS a
-LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_vendor_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id, vendor_code)
+WITH add_tier_rank AS (
+    SELECT
+        a.*,
+        b.min_df_total_of_vendor,
+        b.vendor_cvr3_at_min_df,
+        CASE WHEN a.cvr3 = b.vendor_cvr3_at_min_df THEN NULL ELSE ROUND(a.cvr3 / NULLIF(b.vendor_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_actual_cvr3_from_base,
+        ROW_NUMBER() OVER (PARTITION BY a.entity_id, a.country_code, a.master_asa_id, a.vendor_code ORDER BY a.df_total) AS tier_rank_vendor
+    FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS a
+    LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_vendor_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id, vendor_code)
+)
+
+SELECT 
+    *,
+    MAX(tier_rank_vendor) OVER (PARTITION BY entity_id, country_code, master_asa_id, vendor_code) AS num_tiers_vendor
+FROM add_tier_rank
 ;
 
 ###---------------------------------------------------------------------------------------END OF STEP 14.3---------------------------------------------------------------------------------------###
@@ -835,22 +844,30 @@ INNER JOIN b ON a.entity_id = b.entity_id AND a.country_code = b.country_code AN
 
 -- Step 15.3: Calculate the percentage drop in CVR3 from the base/min DF that was calculated in the previous step and append the result to the first table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code"
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS
-SELECT
-    a.*,
-    b.min_df_total_of_asa,
-    b.asa_cvr3_at_min_df,
-    CASE WHEN a.asa_cvr3_per_df = b.asa_cvr3_at_min_df THEN NULL ELSE ROUND(a.asa_cvr3_per_df / NULLIF(b.asa_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_asa_cvr3_from_base
-FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS a
-LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_asa_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id)
+WITH add_tier_rank AS (
+    SELECT
+        a.*,
+        b.min_df_total_of_asa,
+        b.asa_cvr3_at_min_df,
+        CASE WHEN a.asa_cvr3_per_df = b.asa_cvr3_at_min_df THEN NULL ELSE ROUND(a.asa_cvr3_per_df / NULLIF(b.asa_cvr3_at_min_df, 0) - 1, 4) END AS pct_chng_of_asa_cvr3_from_base,
+        ROW_NUMBER() OVER (PARTITION BY a.entity_id, a.country_code, a.master_asa_id ORDER BY a.df_total) AS tier_rank_master_asa
+    FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_brands_scaled_code` AS a
+    LEFT JOIN `dh-logistics-product-ops.pricing.df_and_cvr3_at_min_tier_asa_level_loved_brands_scaled_code` AS b USING (entity_id, country_code, master_asa_id)
+)
+
+SELECT 
+    *,
+    MAX(tier_rank_master_asa) OVER (PARTITION BY entity_id, country_code, master_asa_id) AS num_tiers_master_asa
+FROM add_tier_rank
 ;
 
 ###---------------------------------------------------------------------------------------END OF STEP 15.3---------------------------------------------------------------------------------------###
 
--- Step 15.4: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
+-- Step 16: Append the ASA level table "cvr_per_df_bucket_asa_level_loved_brands_scaled_code" to the vendor level table "cvr_per_df_bucket_vendor_level_loved_brands_scaled_code"
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code` AS
 SELECT
     -- Vendor level data
-    a.* EXCEPT (cvr3, min_df_total_of_vendor, vendor_cvr3_at_min_df, pct_chng_of_actual_cvr3_from_base),
+    a.* EXCEPT (cvr3, min_df_total_of_vendor, vendor_cvr3_at_min_df, pct_chng_of_actual_cvr3_from_base, tier_rank_vendor, num_tiers_vendor, vendor_cvr3_slope),
     a.min_df_total_of_vendor,
     a.vendor_cvr3_at_min_df,
 
@@ -861,12 +878,27 @@ SELECT
     -- ASA level data at each DF tier of the ASA. We only match to the DF tiers observed in the vendor's sessions
     c.asa_cvr3_per_df,
     c.pct_chng_of_asa_cvr3_from_base,
+    c.asa_cvr3_slope,
+    c.tier_rank_master_asa,
+    c.num_tiers_master_asa,
 
     -- Vendor level data
     a.cvr3,
     a.pct_chng_of_actual_cvr3_from_base, -- The base here being the lowest DF tier observed in the vendor's sessions NOT the lowest DF of the ASA
+    a.vendor_cvr3_slope,
+    a.tier_rank_vendor,
+    a.num_tiers_vendor,
     -- If the change in the vendor's CVR is > the change in the ASA's CVR, that's a YES. Otherwise, NO
     CASE WHEN a.pct_chng_of_actual_cvr3_from_base > c.pct_chng_of_asa_cvr3_from_base THEN "Y" ELSE "N" END AS is_lb_test_passed,
+    -- If the slope from the linear regression on the vendor level > the slope on the ASA level, that's a YES. Otherwise, NO
+    CASE
+        -- If the slope on the vendor level is zero, this means that the vendor had a 0 CVR3, so we automatically label because the elasticity calculation in such case is void
+        WHEN a.vendor_cvr3_slope = 0 THEN "N"
+        WHEN a.vendor_cvr3_slope <= c.asa_cvr3_slope THEN "N"
+        WHEN a.vendor_cvr3_slope IS NULL THEN "N" -- If the vendor_cvr3_slope IS NULL, this means that the vendor has a flat DF, so no elasticity can be calculated
+        WHEN a.vendor_cvr3_slope > c.asa_cvr3_slope THEN "Y"
+        ELSE "Unknown"
+    END AS is_lb_test_passed_lm,
     -- The # of YES's per vendor
     SUM(CASE WHEN a.pct_chng_of_actual_cvr3_from_base > c.pct_chng_of_asa_cvr3_from_base THEN 1 ELSE 0 END) OVER (PARTITION BY a.entity_id, a.country_code, a.master_asa_id, a.vendor_code) AS num_yes
 FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_loved_brands_scaled_code` AS a
@@ -885,7 +917,7 @@ LEFT JOIN `dh-logistics-product-ops.pricing.cvr_per_df_bucket_asa_level_loved_br
 
 ###---------------------------------------------------------------------------------------END OF STEP 15.4---------------------------------------------------------------------------------------###
 
--- Step 16: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
+-- Step 17: Pull all the data associated with the "Loved Brands" that were obtained in the previous step
 CREATE OR REPLACE TABLE `dh-logistics-product-ops.pricing.final_vendor_list_all_data_temp_loved_brands_scaled_code` AS
 WITH temp_tbl AS (
     SELECT
@@ -899,14 +931,22 @@ WITH temp_tbl AS (
         vendor_code,
         -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one)
         CASE WHEN num_yes > 0 THEN "Y" ELSE "N" END AS is_lb,
+        is_lb_test_passed_lm AS is_lb_lm,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(df_total AS STRING) ORDER BY df_total), ", ") AS dfs_seen_in_sessions,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(is_lb_test_passed AS STRING) ORDER BY df_total), ", ") AS is_lb_test_passed,
+        ARRAY_TO_STRING(ARRAY_AGG(CAST(is_lb_test_passed_lm AS STRING) ORDER BY df_total), ", ") AS is_lb_test_passed_lm,
+
         ARRAY_TO_STRING(ARRAY_AGG(CAST(cvr3 AS STRING) ORDER BY df_total), ", ") AS vendor_cvr3_by_df,
         ARRAY_TO_STRING(ARRAY_AGG(CAST(pct_chng_of_actual_cvr3_from_base AS STRING) ORDER BY df_total), ", ") AS pct_chng_of_actual_cvr3_from_base,
+        AVG(vendor_cvr3_slope) AS vendor_cvr3_slope,
+        AVG(num_tiers_vendor) AS num_tiers_vendor,
+
         ARRAY_TO_STRING(ARRAY_AGG(CAST(asa_cvr3_per_df AS STRING) ORDER BY df_total), ", ") AS asa_cvr3_per_df,
-        ARRAY_TO_STRING(ARRAY_AGG(CAST(pct_chng_of_asa_cvr3_from_base AS STRING) ORDER BY df_total), ", ") AS pct_chng_of_asa_cvr3_from_base
+        ARRAY_TO_STRING(ARRAY_AGG(CAST(pct_chng_of_asa_cvr3_from_base AS STRING) ORDER BY df_total), ", ") AS pct_chng_of_asa_cvr3_from_base,
+        AVG(asa_cvr3_slope) AS asa_cvr3_slope,
+        AVG(num_tiers_master_asa) AS num_tiers_master_asa
     FROM `dh-logistics-product-ops.pricing.cvr_per_df_bucket_vendor_level_plus_cvr_thresholds_loved_brands_scaled_code`
-    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
 )
 
 SELECT
@@ -914,20 +954,30 @@ SELECT
     a.region,
     a.entity_id,
     a.country_code,
+    a.asa_id,
     a.master_asa_id,
+    a.asa_name,
     a.asa_common_name,
     a.vendor_code,
     c.vertical_type,
     CASE WHEN b.is_lb IS NOT NULL THEN "Top 25%" ELSE "Bottom 75%" END AS vendor_rank,
+    CASE WHEN b.is_lb_lm IS NOT NULL THEN "Top 25%" ELSE "Bottom 75%" END AS vendor_rank_lm,
 
     -- Vendor data (DFs, CVR per DF tier, and percentage changes from the base tier to each subsequent one) 
-    COALESCE(b.is_lb, "N") AS is_lb, -- Impute the label of the vendor. If the vendor is in the bottom 75%, it's a non-LB by definition
+    COALESCE(b.is_lb, "N") AS is_lb, -- Impute the label of the vendor (pct chng method). If the vendor is in the bottom 75%, it's a non-LB by definition
+    COALESCE(b.is_lb_lm, "N") AS is_lb_lm, -- Impute the label of the vendor (linear reg method). If the vendor is in the bottom 75%, it's a non-LB by definition
     b.dfs_seen_in_sessions,
     COALESCE(b.is_lb_test_passed, "N") AS is_lb_test_passed, -- If the vendor is in the bottom 75% of vendors, the LB test is not passed by definition
+    COALESCE(b.is_lb_test_passed_lm, "N") AS is_lb_test_passed_lm, -- If the vendor is in the bottom 75% of vendors, the LB test is not passed by definition
     b.vendor_cvr3_by_df,
     b.pct_chng_of_actual_cvr3_from_base,
+    b.vendor_cvr3_slope,
+    CAST(b.num_tiers_vendor AS INT64) AS num_tiers_vendor,
+    
     b.asa_cvr3_per_df,
     b.pct_chng_of_asa_cvr3_from_base,
+    b.asa_cvr3_slope,
+    CAST(b.num_tiers_master_asa AS INT64) AS num_tiers_master_asa,
 
     -- Vendor data (Busines metrics and other KPIs)
     a.num_orders,
@@ -944,22 +994,26 @@ SELECT
     a.asa_orders_after_visits_filter,
     a.asa_orders_after_visits_and_orders_filters,
     a.asa_orders_after_all_initial_filters,
-    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS asa_orders_after_lb_logic,
+    SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic, -- We use asa_id not master_asa_id to reflect the right granularity in the dashboard
+    SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS asa_orders_after_lb_logic_lm,
     a.asa_order_share_after_visits_filter,
     a.asa_order_share_after_visits_and_orders_filters,
     a.asa_order_share_after_all_initial_filters,
-    ROUND(SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic,
+    ROUND(SUM(CASE WHEN b.is_lb = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic,
+    ROUND(SUM(CASE WHEN b.is_lb_lm = "Y" THEN a.num_orders ELSE 0 END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.entity_orders, 0), 4) AS asa_order_share_after_lb_logic_lm,
 
     -- Vendor count and share after each filtering stage
     a.vendor_count_caught_by_asa,
     a.vendor_count_remaining_after_visits_filter,
     a.vendor_count_remaining_after_visits_and_orders_filters,
     a.vendor_count_remaining_after_all_initial_filters,
-    COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) AS vendor_count_remaining_after_lb_logic,
+    COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_lb_logic,
+    COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) AS vendor_count_remaining_after_lb_logic_lm,
     a.perc_vendors_remaining_after_visits_filter,
     a.perc_vendors_remaining_after_visits_and_orders_filters,
     a.perc_vendors_remaining_after_all_initial_filters,
-    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.master_asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic,
+    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic,
+    ROUND(COUNT(DISTINCT CASE WHEN b.is_lb_lm = "Y" THEN b.vendor_code END) OVER (PARTITION BY b.entity_id, b.country_code, b.asa_id) / NULLIF(a.vendor_count_caught_by_asa, 0), 4) AS perc_vendors_remaining_after_lb_logic_lm,
     CURRENT_TIMESTAMP() AS update_timestamp
 FROM `dh-logistics-product-ops.pricing.all_metrics_for_vendor_screening_loved_brands_scaled_code` AS a -- Contains ALL vendors (bottom 75% and top 25%)
 LEFT JOIN temp_tbl AS b
@@ -973,7 +1027,7 @@ LEFT JOIN `fulfillment-dwh-production.curated_data_shared_central_dwh.vendors` A
 
 ###---------------------------------------------------------------------------------------END OF STEP 16---------------------------------------------------------------------------------------###
 
--- Step 17: Append the output of `final_vendor_list_all_data_temp_loved_brands_scaled_code` to the final table `final_vendor_list_all_data_loved_brands_scaled_code`
+-- Step 18: Append the output of `final_vendor_list_all_data_temp_loved_brands_scaled_code` to the final table `final_vendor_list_all_data_loved_brands_scaled_code`
 INSERT `dh-logistics-product-ops.pricing.final_vendor_list_all_data_loved_brands_scaled_code`
 SELECT *
 FROM `dh-logistics-product-ops.pricing.final_vendor_list_all_data_temp_loved_brands_scaled_code`
