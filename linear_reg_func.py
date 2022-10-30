@@ -29,7 +29,7 @@ def linear_reg_func(granularity): # "asa" or "vendor"
         df = client.query(query=data_query).result().to_dataframe(bqstorage_client=bqstorage_client)
         
         # Get the slopes
-        df_slopes = df[df["num_tiers_asa"] > 1].groupby(["entity_id", "country_code", "master_asa_id"]).apply(model, cvr_col = "asa_cvr3_per_df").to_frame(name="asa_cvr3_slope")
+        df_slopes = df[df["num_tiers_master_asa"] > 1].groupby(["entity_id", "country_code", "master_asa_id"]).apply(model, cvr_col = "asa_cvr3_per_df").to_frame(name="asa_cvr3_slope")
         
         # Join the results to the original data frame
         df_merged = pd.merge(left=df, right=df_slopes, on=["entity_id", "country_code", "master_asa_id"], how="left")
